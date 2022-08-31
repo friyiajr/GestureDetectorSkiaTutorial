@@ -20,25 +20,24 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import {rotationHandlerName} from 'react-native-gesture-handler/lib/typescript/handlers/RotationGestureHandler';
-import {useSharedValue} from 'react-native-reanimated';
-
-const {PI, sin, cos} = Math;
+import {cos, useSharedValue} from 'react-native-reanimated';
+import {canvas2Polar, polar2Canvas} from 'react-native-redash';
 
 const {width} = Dimensions.get('window');
 
 const App = () => {
-  const size = width - 50;
+  const size = width;
   const strokeWidth = 20;
   const cx = size / 2;
   const cy = size / 2;
   const r = (size - strokeWidth) / 2;
-  const startAngle = PI + PI * 0.2;
-  const endAngle = 2 * PI - PI * 0.2;
-  const A = PI + PI * 0.4;
-  const x1 = cx - r * cos(startAngle);
-  const y1 = -r * sin(startAngle) + cy;
-  const x2 = cx - r * cos(endAngle);
-  const y2 = -r * sin(endAngle) + cy;
+  const startAngle = Math.PI + Math.PI * 0.2;
+  const endAngle = 2 * Math.PI - Math.PI * 0.2;
+  const A = Math.PI + Math.PI * 0.4;
+  const x1 = cx - r * Math.cos(startAngle);
+  const y1 = -r * Math.sin(startAngle) + cy;
+  const x2 = cx - r * Math.cos(endAngle);
+  const y2 = -r * Math.sin(endAngle) + cy;
   const rawPath = `M ${x1} ${y1} A ${r} ${r} 0 1 0 ${x2} ${y2}`;
   const skiaPath = Skia.Path.MakeFromSVGString(rawPath);
 
@@ -48,17 +47,48 @@ const App = () => {
   const previousPositionX = useSharedValue(x2);
   const previousPositionY = useSharedValue(y2);
 
+  const {radius} = canvas2Polar(
+    {
+      x: x2,
+      y: y2,
+    },
+    {
+      x: cx,
+      y: cy,
+    },
+  );
+
   const skiaCx = useValue(x2);
   const skiaCy = useValue(y2);
 
   const gesture = Gesture.Pan()
     .onBegin(({translationX, translationY}) => {
-      movableCx.value = previousPositionX.value + translationX;
-      movableCy.value = previousPositionY.value + translationY;
+      // movableCx.value = previousPositionX.value + translationX;
+      // console.log('onBegin - movableCx.value', movableCx.value);
+      // movableCy.value = previousPositionY.value + translationY;
+      // console.log('onBegin - movableCy.value', movableCy.value);
     })
     .onUpdate(({translationX, translationY}) => {
-      movableCx.value = translationX + previousPositionX.value;
-      movableCy.value = translationY + previousPositionY.value;
+      const oldCanvasX = translationX + previousPositionX.value;
+      const oldCanvasY = translationY + previousPositionY.value;
+
+      const xPrime = oldCanvasX - cx;
+      const yPrime = -(oldCanvasY - cy);
+      const newTheta = Math.atan2(yPrime, xPrime);
+
+      const newCoords = polar2Canvas(
+        {
+          theta: newTheta,
+          radius,
+        },
+        {
+          x: cx,
+          y: cy,
+        },
+      );
+
+      movableCx.value = newCoords.x;
+      movableCy.value = newCoords.y;
     })
     .onEnd(() => {
       previousPositionX.value = movableCx.value;

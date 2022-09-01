@@ -42,13 +42,17 @@ const App = () => {
   const x2 = cx - r * Math.cos(endAngle);
   const y2 = -r * Math.sin(endAngle) + cy;
   const rawPath = `M ${x1} ${y1} A ${r} ${r} 0 1 0 ${x2} ${y2}`;
+  const rawForegroundPath = `M ${x2} ${y2} A ${r} ${r} 1 0 1 ${x1} ${y1}`;
   const skiaBackgroundPath = Skia.Path.MakeFromSVGString(rawPath);
+  const skiaForegroundPath = Skia.Path.MakeFromSVGString(rawForegroundPath);
 
   const movableCx = useSharedValue(x2);
   const movableCy = useSharedValue(y2);
 
   const previousPositionX = useSharedValue(x2);
   const previousPositionY = useSharedValue(y2);
+
+  const percentComplete = useSharedValue(0);
 
   const {radius} = canvas2Polar(
     {
@@ -63,6 +67,7 @@ const App = () => {
 
   const skiaCx = useValue(x2);
   const skiaCy = useValue(y2);
+  const skiaPercentComplete = useValue(0);
 
   const gesture = Gesture.Pan()
     .onUpdate(({translationX, translationY, absoluteX}) => {
@@ -82,6 +87,9 @@ const App = () => {
       } else {
         newTheta = rawTheta;
       }
+
+      const percent = 1 - newTheta / Math.PI;
+      percentComplete.value = percent;
 
       const newCoords = polar2Canvas(
         {
@@ -110,7 +118,11 @@ const App = () => {
     skiaCy.current = movableCy.value;
   }, movableCy);
 
-  if (!skiaBackgroundPath) {
+  useSharedValueEffect(() => {
+    skiaPercentComplete.current = percentComplete.value;
+  }, percentComplete);
+
+  if (!skiaBackgroundPath || !skiaForegroundPath) {
     return <View />;
   }
 
@@ -118,13 +130,22 @@ const App = () => {
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={gesture}>
         <View style={styles.container}>
-          <View style={{flex: 1, backgroundColor: 'black'}} />
+          <View style={{flex: 2, backgroundColor: 'black'}} />
           <Canvas style={styles.canvas}>
             <Path
               path={skiaBackgroundPath}
               style="stroke"
               strokeWidth={strokeWidth}
               strokeCap="round"
+            />
+            <Path
+              path={skiaForegroundPath}
+              style="stroke"
+              strokeWidth={strokeWidth}
+              strokeCap="round"
+              color={'orange'}
+              start={0}
+              end={skiaPercentComplete}
             />
             <Circle cx={skiaCx} cy={skiaCy} r={20} color="green" style="fill" />
           </Canvas>

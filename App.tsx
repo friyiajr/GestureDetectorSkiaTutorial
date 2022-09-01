@@ -1,40 +1,33 @@
 import {
   Canvas,
-  Skia,
-  Path,
   Circle,
-  useValue,
+  Path,
+  Rect,
+  Skia,
   useSharedValueEffect,
+  useValue,
 } from '@shopify/react-native-skia';
 import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  Dimensions,
-  requireNativeComponent,
-} from 'react-native';
+import {Dimensions, StyleSheet, View} from 'react-native';
 import {
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
-import {rotationHandlerName} from 'react-native-gesture-handler/lib/typescript/handlers/RotationGestureHandler';
-import {cos, useSharedValue} from 'react-native-reanimated';
-import {
-  canvas2Cartesian,
-  canvas2Polar,
-  polar2Canvas,
-} from 'react-native-redash';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import {canvas2Polar, polar2Canvas} from 'react-native-redash';
 
-const {width} = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
 const App = () => {
   const size = width;
   const strokeWidth = 20;
   const cx = size / 2;
   const cy = size / 2;
-  const r = (size - strokeWidth) / 2 - 50;
+  const r = (size - strokeWidth) / 2 - 40;
   const startAngle = Math.PI;
   const endAngle = 2 * Math.PI;
   const x1 = cx - r * Math.cos(startAngle);
@@ -89,6 +82,7 @@ const App = () => {
       }
 
       const percent = 1 - newTheta / Math.PI;
+
       percentComplete.value = percent;
 
       const newCoords = polar2Canvas(
@@ -122,6 +116,10 @@ const App = () => {
     skiaPercentComplete.current = percentComplete.value;
   }, percentComplete);
 
+  const style = useAnimatedStyle(() => {
+    return {height: 200, width: 300, opacity: percentComplete.value};
+  }, [percentComplete]);
+
   if (!skiaBackgroundPath || !skiaForegroundPath) {
     return <View />;
   }
@@ -130,13 +128,27 @@ const App = () => {
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={gesture}>
         <View style={styles.container}>
-          <View style={{flex: 2, backgroundColor: 'black'}} />
+          <View
+            style={{
+              flex: 2,
+              backgroundColor: 'black',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+            <Animated.Image
+              source={require('./ghost.png')}
+              style={style}
+              resizeMode="center"
+            />
+          </View>
           <Canvas style={styles.canvas}>
+            <Rect x={0} y={0} width={width} height={height} color="black" />
             <Path
               path={skiaBackgroundPath}
               style="stroke"
               strokeWidth={strokeWidth}
               strokeCap="round"
+              color={'grey'}
             />
             <Path
               path={skiaForegroundPath}
@@ -147,7 +159,14 @@ const App = () => {
               start={0}
               end={skiaPercentComplete}
             />
-            <Circle cx={skiaCx} cy={skiaCy} r={20} color="green" style="fill" />
+            <Circle
+              cx={skiaCx}
+              cy={skiaCy}
+              r={20}
+              color="orange"
+              style="fill"
+            />
+            <Circle cx={skiaCx} cy={skiaCy} r={15} color="white" style="fill" />
           </Canvas>
         </View>
       </GestureDetector>

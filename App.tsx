@@ -21,7 +21,11 @@ import {
 } from 'react-native-gesture-handler';
 import {rotationHandlerName} from 'react-native-gesture-handler/lib/typescript/handlers/RotationGestureHandler';
 import {cos, useSharedValue} from 'react-native-reanimated';
-import {canvas2Polar, polar2Canvas} from 'react-native-redash';
+import {
+  canvas2Cartesian,
+  canvas2Polar,
+  polar2Canvas,
+} from 'react-native-redash';
 
 const {width} = Dimensions.get('window');
 
@@ -30,16 +34,15 @@ const App = () => {
   const strokeWidth = 20;
   const cx = size / 2;
   const cy = size / 2;
-  const r = (size - strokeWidth) / 2;
-  const startAngle = Math.PI + Math.PI * 0.2;
-  const endAngle = 2 * Math.PI - Math.PI * 0.2;
-  const A = Math.PI + Math.PI * 0.4;
+  const r = (size - strokeWidth) / 2 - 50;
+  const startAngle = Math.PI;
+  const endAngle = 2 * Math.PI;
   const x1 = cx - r * Math.cos(startAngle);
   const y1 = -r * Math.sin(startAngle) + cy;
   const x2 = cx - r * Math.cos(endAngle);
   const y2 = -r * Math.sin(endAngle) + cy;
   const rawPath = `M ${x1} ${y1} A ${r} ${r} 0 1 0 ${x2} ${y2}`;
-  const skiaPath = Skia.Path.MakeFromSVGString(rawPath);
+  const skiaBackgroundPath = Skia.Path.MakeFromSVGString(rawPath);
 
   const movableCx = useSharedValue(x2);
   const movableCy = useSharedValue(y2);
@@ -62,19 +65,23 @@ const App = () => {
   const skiaCy = useValue(y2);
 
   const gesture = Gesture.Pan()
-    .onBegin(({translationX, translationY}) => {
-      // movableCx.value = previousPositionX.value + translationX;
-      // console.log('onBegin - movableCx.value', movableCx.value);
-      // movableCy.value = previousPositionY.value + translationY;
-      // console.log('onBegin - movableCy.value', movableCy.value);
-    })
-    .onUpdate(({translationX, translationY}) => {
+    .onUpdate(({translationX, translationY, absoluteX}) => {
       const oldCanvasX = translationX + previousPositionX.value;
       const oldCanvasY = translationY + previousPositionY.value;
 
       const xPrime = oldCanvasX - cx;
       const yPrime = -(oldCanvasY - cy);
-      const newTheta = Math.atan2(yPrime, xPrime);
+      const rawTheta = Math.atan2(yPrime, xPrime);
+
+      let newTheta;
+
+      if (absoluteX < width / 2 && rawTheta < 0) {
+        newTheta = Math.PI;
+      } else if (absoluteX > width / 2 && rawTheta <= 0) {
+        newTheta = 0;
+      } else {
+        newTheta = rawTheta;
+      }
 
       const newCoords = polar2Canvas(
         {
@@ -103,7 +110,7 @@ const App = () => {
     skiaCy.current = movableCy.value;
   }, movableCy);
 
-  if (!skiaPath) {
+  if (!skiaBackgroundPath) {
     return <View />;
   }
 
@@ -111,14 +118,15 @@ const App = () => {
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={gesture}>
         <View style={styles.container}>
+          <View style={{flex: 1, backgroundColor: 'black'}} />
           <Canvas style={styles.canvas}>
             <Path
-              path={skiaPath}
+              path={skiaBackgroundPath}
               style="stroke"
               strokeWidth={strokeWidth}
               strokeCap="round"
             />
-            <Circle cx={skiaCx} cy={skiaCy} r={30} color="green" style="fill" />
+            <Circle cx={skiaCx} cy={skiaCy} r={20} color="green" style="fill" />
           </Canvas>
         </View>
       </GestureDetector>

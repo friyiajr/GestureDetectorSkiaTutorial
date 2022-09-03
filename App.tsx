@@ -18,22 +18,22 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
-import {canvas2Polar, polar2Canvas} from 'react-native-redash';
+import {polar2Canvas} from 'react-native-redash';
 
 const {width, height} = Dimensions.get('window');
 
+const ghost = require('./ghost.png');
+
 const App = () => {
-  const size = width;
   const strokeWidth = 20;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = (size - strokeWidth) / 2 - 40;
+  const center = width / 2;
+  const r = (width - strokeWidth) / 2 - 40;
   const startAngle = Math.PI;
   const endAngle = 2 * Math.PI;
-  const x1 = cx - r * Math.cos(startAngle);
-  const y1 = -r * Math.sin(startAngle) + cy;
-  const x2 = cx - r * Math.cos(endAngle);
-  const y2 = -r * Math.sin(endAngle) + cy;
+  const x1 = center - r * Math.cos(startAngle);
+  const y1 = -r * Math.sin(startAngle) + center;
+  const x2 = center - r * Math.cos(endAngle);
+  const y2 = -r * Math.sin(endAngle) + center;
   const rawPath = `M ${x1} ${y1} A ${r} ${r} 0 1 0 ${x2} ${y2}`;
   const rawForegroundPath = `M ${x2} ${y2} A ${r} ${r} 1 0 1 ${x1} ${y1}`;
   const skiaBackgroundPath = Skia.Path.MakeFromSVGString(rawPath);
@@ -41,22 +41,9 @@ const App = () => {
 
   const movableCx = useSharedValue(x2);
   const movableCy = useSharedValue(y2);
-
   const previousPositionX = useSharedValue(x2);
   const previousPositionY = useSharedValue(y2);
-
   const percentComplete = useSharedValue(0);
-
-  const {radius} = canvas2Polar(
-    {
-      x: x2,
-      y: y2,
-    },
-    {
-      x: cx,
-      y: cy,
-    },
-  );
 
   const skiaCx = useValue(x2);
   const skiaCy = useValue(y2);
@@ -67,8 +54,8 @@ const App = () => {
       const oldCanvasX = translationX + previousPositionX.value;
       const oldCanvasY = translationY + previousPositionY.value;
 
-      const xPrime = oldCanvasX - cx;
-      const yPrime = -(oldCanvasY - cy);
+      const xPrime = oldCanvasX - center;
+      const yPrime = -(oldCanvasY - center);
       const rawTheta = Math.atan2(yPrime, xPrime);
 
       let newTheta;
@@ -82,17 +69,16 @@ const App = () => {
       }
 
       const percent = 1 - newTheta / Math.PI;
-
       percentComplete.value = percent;
 
       const newCoords = polar2Canvas(
         {
           theta: newTheta,
-          radius,
+          radius: r,
         },
         {
-          x: cx,
-          y: cy,
+          x: center,
+          y: center,
         },
       );
 
@@ -104,17 +90,16 @@ const App = () => {
       previousPositionY.value = movableCy.value;
     });
 
-  useSharedValueEffect(() => {
-    skiaCx.current = movableCx.value;
-  }, movableCx);
-
-  useSharedValueEffect(() => {
-    skiaCy.current = movableCy.value;
-  }, movableCy);
-
-  useSharedValueEffect(() => {
-    skiaPercentComplete.current = percentComplete.value;
-  }, percentComplete);
+  useSharedValueEffect(
+    () => {
+      skiaCx.current = movableCx.value;
+      skiaCy.current = movableCy.value;
+      skiaPercentComplete.current = percentComplete.value;
+    },
+    movableCx,
+    movableCy,
+    percentComplete,
+  );
 
   const style = useAnimatedStyle(() => {
     return {height: 200, width: 300, opacity: percentComplete.value};
@@ -128,18 +113,8 @@ const App = () => {
     <GestureHandlerRootView style={styles.container}>
       <GestureDetector gesture={gesture}>
         <View style={styles.container}>
-          <View
-            style={{
-              flex: 2,
-              backgroundColor: 'black',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}>
-            <Animated.Image
-              source={require('./ghost.png')}
-              style={style}
-              resizeMode="center"
-            />
+          <View style={styles.ghost}>
+            <Animated.Image source={ghost} style={style} resizeMode="center" />
           </View>
           <Canvas style={styles.canvas}>
             <Rect x={0} y={0} width={width} height={height} color="black" />
@@ -183,6 +158,12 @@ const styles = StyleSheet.create({
   },
   cursor: {
     backgroundColor: 'green',
+  },
+  ghost: {
+    flex: 2,
+    backgroundColor: 'black',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
